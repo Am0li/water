@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split #Spliting data into training and test sets
+from sklearn.model_selection import train_test_split, GridSearchCV #Spliting data into training and test sets
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score, classification_report #used to measure output of models
 from sklearn.tree import DecisionTreeClassifier #import model: Decison tree
 from sklearn import tree
@@ -34,25 +34,33 @@ df_clean = clean_data(df_water, True)
 #split data for training and testing
 X = df_clean.drop("Potability",axis=1).values
 y = df_clean["Potability"].values
-
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3,stratify=y, random_state=101)
 
-clf_tree = DecisionTreeClassifier(criterion="gini", random_state=100, max_depth=7, min_samples_leaf=30)
-clf_tree.fit(X_train,y_train)
+#Parameters grid for tuning
+params = {
+    'max_depth': [2, 3, 5, 10, 20, 30],
+    'min_samples_leaf': [5, 10, 20, 50, 100],
+    'criterion': ["gini", "entropy"]
+}
 
-y_pred = clf_tree.predict(X_test)
+#parameter tuning
+clf_tree = DecisionTreeClassifier()
+grid_search = GridSearchCV(estimator=clf_tree,param_grid=params, cv=5, n_jobs=-1)
+grid_search.fit(X_train,y_train)
+best_tree = grid_search.best_estimator_
+y_pred = best_tree.predict(X_test)
 
-print("Confusion Matrix: ",
-      confusion_matrix(y_test, y_pred))
+print("Best Params:",grid_search.best_params_)
+print("Confusion Matrix: ", confusion_matrix(y_test, y_pred))
 print("Accuracy : ", accuracy_score(y_test, y_pred)*100)
 print("Report : ", classification_report(y_test, y_pred))
 
 plt.figure(figsize=(15, 10))
-tree.plot_tree(clf_tree,feature_names=df_clean.columns[0:-1], filled=True)
+tree.plot_tree(best_tree,feature_names=df_clean.columns[0:-1], filled=True)
 
-cm = confusion_matrix(y_test, y_pred, labels=clf_tree.classes_)
+cm = confusion_matrix(y_test, y_pred, labels=best_tree.classes_)
 disp = ConfusionMatrixDisplay(confusion_matrix=cm,
-                              display_labels=clf_tree.classes_)
+                              display_labels=best_tree.classes_)
 disp.plot()
 
 plt.show()
